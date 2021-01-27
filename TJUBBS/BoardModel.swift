@@ -11,23 +11,29 @@
 import Foundation
 import ObjectMapper
 
-struct BoardModel: Mappable {
-    
+class BoardModel: Mappable {
     var id: Int = 0
     var name: String = ""
     var info: String = ""
     var admin: String = ""
     var threadCount: Int = 0
     var visibility: Int = 0
-    
-    init?(map: Map) {}
-    
-    mutating func mapping(map: Map) {
+    var anonymous = 0
+    var forumID: Int = 0
+    var forumName: String = ""
+    var hidden: Int = 0
+
+    required init?(map: Map) {}
+
+    func mapping(map: Map) {
         id <- map["id"]
         name <- map["name"]
         info <- map["info"]
         admin <- map["admin"]
         threadCount <- map["c_thread"]
         visibility <- map["visibility"]
+        forumID <- map["forum_id"]
+        forumName <- map["forum_name"]
+        anonymous <- map["anonymous"]
     }
 }

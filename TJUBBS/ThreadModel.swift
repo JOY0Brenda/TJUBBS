@@ -10,24 +10,32 @@ import Foundation
 import ObjectMapper
 
 struct ThreadModel: Mappable {
-    
-    var id: Int = 0
-    var title: String = ""
-    var authorID: Int = 0
-    var boardID: Int = 0
-    var authorName: String = ""
-    var authorNickname: String = ""
-    var isTop: Bool = false
-    var isElite: Bool = false
-    var visibility: Int = 0 // 0 for always, 1 for logged in users, 2 for never
-    var createTime: Int = 0
-    var modifyTime: Int = 0
-    var content: String = ""
-    var category: String = ""
-    var replyNumber: Int = 0
-    
+
+    var id = 0
+    var title = ""
+    var authorID = 0
+    var boardID = 0
+    var authorName = "未知用户"
+    var authorNickname = ""
+    var isTop = false
+    var isElite = false
+    var isLocked = false
+    var visibility = 0 // 0 for always, 1 for logged in users, 2 for never
+    var createTime = 0
+    var modifyTime = 0
+    var replyTime = 0
+    var content = ""
+    var category = ""
+    var replyNumber = 0
+    var inCollection = false
+    var anonymous = 0
+    var boardName = ""
+    var isFriend = false
+    var likeCount = 0
+    var isLiked = false
+
     init?(map: Map) {}
-    
+
     mutating func mapping(map: Map) {
         id <- map["id"]
         title <- map["title"]
@@ -41,9 +49,16 @@ struct ThreadModel: Mappable {
         visibility <- map["visibility"]
         createTime <- map["t_create"]
         modifyTime <- map["t_modify"]
+        replyTime <- map["t_reply"]
         content <- map["content"]
         category <- map["category"]
-        
+        inCollection <- map["in_collection"]
+        anonymous <- map["anonymous"]
+        boardName <- map["board_name"]
+        isFriend <- map["friend"]
+        isLocked <- map ["b_locked"]
+        likeCount <- map["like"]
+        isLiked <- map["liked"]
     }
-    
+
 }

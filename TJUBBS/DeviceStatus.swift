@@ -15,20 +15,20 @@ struct DeviceStatus {
         }
         return "null"
     }
-    
-    static func appName() -> String {
+
+    static var appName: String {
         return getInfo(withKey: "CFBundleName")
     }
-    
-    static func appVersion() -> String {
+
+    static var appVersion: String {
         return getInfo(withKey: "CFBundleVersion")
     }
-    
-    static func appBuild() -> String {
+
+    static var appBuild: String {
         return getInfo(withKey: "CFBundleVersion")
     }
-    
-    static func deviceModel() -> String {
+
+    static var deviceModel: String {
         /*
          NSLog(@"设备所有者的名称－－%@",device_.name);
          NSLog(@"设备的类别－－－－－%@",device_.model);
@@ -41,7 +41,7 @@ struct DeviceStatus {
     }
 
     private static func getIPAddresses() -> [String: String] {
-        var addresses = [String: String]()
+        return [String: String]()
 //        
 //        // Get list of all interfaces on the local machine:
 //        var ifaddr : UnsafeMutablePointer<ifaddrs>?
@@ -72,17 +72,17 @@ struct DeviceStatus {
 //            }
 //        }
 //        freeifaddrs(ifaddr)
-        return addresses
+//        return addresses
     }
-    
-    static func deviceOSVersion() -> String {
+
+    static var deviceOSVersion: String {
         return UIDevice.current.systemVersion
     }
-    
-    static func userAgentString() -> String {
-        return "\(appName())/\(appVersion())(\(deviceModel()); iOS \(deviceOSVersion()))"
+
+    static var userAgent: String {
+        return "\(appName)/\(appVersion)(\(deviceModel); iOS \(deviceOSVersion))"
     }
-    
+
     static func getIPAddress(preferIPv4 preference: Bool) -> String {
         let dict = getIPAddresses()
         if preference == true {
@@ -97,8 +97,7 @@ struct DeviceStatus {
                 return address
             }
         }
-        // FIXME: Null IPv6 address?
         return preference ? "0.0.0.0": "::"
     }
-    
+
 }

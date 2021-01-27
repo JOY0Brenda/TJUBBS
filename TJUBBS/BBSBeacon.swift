@@ -17,138 +17,115 @@ enum SessionType {
     case put
 }
 
-enum BBSError: String, Error {
-    case network = "网络错误"
-    case custom = ""
-}
-
-let rootURL = ""
-
 struct BBSBeacon {
-    //TODO: change AnyObject to Any
-    static func request(withType type: HTTPMethod, url: String, token: String? = nil, parameters: Dictionary<String, String>?, failure: ((Error)->())? = nil, success: ((Dictionary<String, Any>)->())?) {
-        var headers = HTTPHeaders()
-        headers["User-Agent"] = DeviceStatus.userAgentString()
-        headers["X-Requested-With"] = "Mobile"
+    static var authentication: String? {
         if let uid = BBSUser.shared.uid, let tokenStr = BBSUser.shared.token {
-            headers["authentication"] = String(uid) + "|" + tokenStr
+            return String(uid) + "|" + tokenStr
+        } else {
+            return nil
         }
-        let para = parameters ?? [:]
-        let fullURL = rootURL + url
-        if type == .get || type == .post {
-            Alamofire.request(fullURL, method: type, parameters: para, encoding: JSONEncoding.default, headers: headers).validate(statusCode: 200...200).responseJSON { response in
-                HUD.hide(afterDelay: 0.5)
+    }
+    static func request(withType type: HTTPMethod = .get, url: String, token: String? = nil, parameters: [String: String]?, failure: ((Error) -> Void)? = nil, success: (([String: Any]) -> Void)?) {
+        var headers = HTTPHeaders()
+        headers["User-Agent"] = DeviceStatus.userAgent
+        headers["X-Requested-With"] = "Mobile"
+        if let authentication = authentication {
+            headers["authentication"] = authentication
+        }
+        Alamofire.SessionManager.default.session.configuration.timeoutIntervalForRequest = 7.0
+
+        LoadingWrapper.shared.startTimer = Timer.scheduledTimer(timeInterval: 1.0, target: LoadingWrapper.shared, selector: #selector(LoadingWrapper.startLoading), userInfo: nil, repeats: false)
+        LoadingWrapper.shared.stopTimer = Timer.scheduledTimer(timeInterval: 7.0, target: LoadingWrapper.shared, selector: #selector(LoadingWrapper.stopLoading), userInfo: nil, repeats: false)
+
+        if type == .get || type == .post || type == .put {
+            Alamofire.request(url, method: type, parameters: parameters, encoding: JSONEncoding.default, headers: headers).responseString { response in
+                HUD.hide()
+                LoadingWrapper.shared.startTimer?.invalidate()
+                LoadingWrapper.shared.startTimer = nil
+                LoadingWrapper.shared.stopTimer = nil
+                LoadingWrapper.shared.stopTimer?.invalidate()
                 switch response.result {
                 case .success:
-                    if let data = response.result.value  {
-                        if let dict = data as? Dictionary<String, AnyObject> {
-                            if let err = dict["err"] as? Int, err == 0 {
-                                success?(dict)
-                            } else  {
-                                HUD.flash(.label(dict["data"] as? String), delay: 1.0)
-                                failure?(BBSError.custom)
-                            }
-                        }
+                    guard let data = response.data else {
+                        failure?(BBSError.custom("请求数据为空"))
+                        return
                     }
+
+                    guard let json = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) else {
+                        let errMsg = String(data: data, encoding: .utf8) ?? "JSON解析错误"
+                        HUD.flash(.labeledError(title: errMsg, subtitle: nil), delay: 1.2)
+                        failure?(BBSError.custom(errMsg))
+                        return
+                    }
+
+                    guard let dict = json as? [String: Any],
+                        let err = dict["err"] as? Int else {
+                            failure?(BBSError.custom("JSON数据转换错误"))
+                            return
+                    }
+
+                    guard err == 0 else {
+                        // "1" : "无效的UID或token过期"
+                        // "2" : "无效的token"
+                        if err == 0 || err == 1 {
+                            // TODO: present login controller
+                            BBSUser.shared.token = nil
+                            return
+                        }
+
+                        if let msg = dict["data"] as? String {
+                            // TODO: 整理一下 统一展示
+                            HUD.flash(.label(msg), delay: 1.2)
+                            failure?(BBSError.errorCode(err, msg))
+                        } else {
+                            failure?(BBSError.errorCode(err, "未知请求错误"))
+                        }
+                        return
+                    }
+
+                    success?(dict)
                 case .failure(let error):
-                    if let data = response.result.value  {
-                        if let dict = data as? Dictionary<String, AnyObject> {
-                            log.errorMessage(dict["data"] as? String)/
-                            HUD.flash(.label(dict["data"] as? String), delay: 1.0)
-                        }
-                    }
                     failure?(error)
-                    log.error(error)/
                 }
-            }.downloadProgress {_ in
-                HUD.show(.rotatingImage(UIImage(named: "progress")))
             }
-            
-        } else if type == .put {
-            //            Alamofire.upload(multipartFormData: { formdata in
-            ////                for item in para {
-            ////                    let data = Data()
-            ////                }
-            ////                formdata.append(<#T##data: Data##Data#>, withName: <#T##String#>)
-            //                formdata.append(data!, withName: "1", fileName: "avatar.jpeg", mimeType: "image/jpeg")
-            //            }, to: url, method: .put, headers: headers, encodingCompletion: { response in
-            //                switch response {
-            //                case .success(let upload, _, _):
-            //                    upload.responseJSON { response in
-            //                        success?()
-            //                    }
-            //                case .failure(let error):
-            //                    failure?(error)
-            //                    print(error)
-            //                }
-            //            })
-            //
-            
-            //            guard let filePath = parameters?["filePath"] else {
-            //                fatalError("参数里要有文件路径filePath!")
-            //            }
-            //            Alamofire.upload(filePath, to: fullURL, method: .put, headers: headers)
-            //                .uploadProgress(queue: DispatchQueue.global(qos: .utility)) { progress in
-            //                    print("上传进度: \(progress.fractionCompleted)")
-            //                }
-            //                .validate { request, response, data in
-            //                    // 自定义的校验闭包, 现在加上了 `data` 参数(允许你提前转换数据以便在必要时挖掘到错误信息)
-            //                    return .success
-            //                }
-            //                .responseJSON { response in
-            //                    switch response.result {
-            //                    case .success:
-            //                        if let data = response.result.value  {
-            //                            if let dict = data as? Dictionary<String, AnyObject>, dict["error_code"] as! Int == 0 {
-            //                                success?(dict)
-            //                            }
-            //                        }
-            //                    case .failure(let error):
-            //                        failure?(error)
-            //                        log.error(error)/
-            //                        if let data = response.result.value  {
-            //                            if let dict = data as? Dictionary<String, AnyObject> {
-            //                                log.errorMessage(dict["message"] as! String)/
-            //                            }
-            //                        }
-            //                    }
-            //            }
+
         } else if type == .delete {
-            Alamofire.request(fullURL, method: .delete, parameters: para, encoding: JSONEncoding.default, headers: headers).responseJSON { response in
+            Alamofire.request(url, method: .delete, parameters: parameters, encoding: JSONEncoding.default, headers: headers).responseJSON { response in
                 switch response.result {
                 case .success:
-                    if let data = response.result.value  {
-                        if let dict = data as? Dictionary<String, Any>, dict["err"] as? Int == 0 {
+                    if let data = response.result.value {
+                        if let dict = data as? [String: Any], dict["err"] as? Int == 0 {
                             success?(dict)
                         } else {
+                            HUD.hide()
                             HUD.flash(.label((data as? [String: Any])?["data"] as? String), delay: 1.0)
                         }
                     }
                 case .failure(let error):
-                    if let data = response.result.value  {
-                        if let dict = data as? Dictionary<String, Any> {
-                            log.errorMessage(dict["data"] as? String)/
+                    if let data = response.result.value {
+                        if let dict = data as? [String: Any] {
+                            //                            log.errorMessage(dict["data"] as? String)/
+
+                            HUD.hide()
                             HUD.flash(.label(dict["data"] as? String), delay: 1.0)
                         }
                     }
                     failure?(error)
-                    log.error(error)/
+                    //                    log.error(error)/
                 }
             }
         }
     }
-    
-    static func requestImage(url: String, failure: ((Error)->())? = nil, success: ((UIImage)->())?) {
+
+    static func requestImage(url: String, failure: ((Error) -> Void)? = nil, success: ((UIImage) -> Void)?) {
         //        Alamofire.request( , method:  , parameters:  , encoding:  , headers:  )
         var headers = HTTPHeaders()
-        headers["User-Agent"] = DeviceStatus.userAgentString()
-        guard let uid = BBSUser.shared.uid, let tokenStr = BBSUser.shared.token else {
-            log.errorMessage("Token expired!")/
-            return
+        headers["User-Agent"] = DeviceStatus.userAgent
+
+        if let authentication = authentication {
+            headers["authentication"] = authentication
         }
-        headers["authentication"] = String(uid) + "|" + tokenStr
-        let defaultPolicy = Alamofire.SessionManager.default.session.configuration.requestCachePolicy
-        Alamofire.SessionManager.default.session.configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+
         Alamofire.request(url, method: .get, parameters: nil, headers: headers).responseData { response in
             switch response.result {
             case .success:
@@ -158,32 +135,73 @@ struct BBSBeacon {
             case .failure(let error):
                 failure?(error)
             }
-            Alamofire.SessionManager.default.session.configuration.requestCachePolicy = defaultPolicy
         }
     }
-    
-    static func uploadImage(url: String, image: UIImage, failure: ((Error)->())? = nil, success: (()->())?) {
+
+    static func uploadImage(url: String, method: HTTPMethod = .put, image: UIImage, progressBlock: ((Progress) -> Void)? = nil, failure: ((Error) -> Void)? = nil, success: (([String: Any]) -> Void)?) {
         let data = UIImageJPEGRepresentation(image, 1.0)
         var headers = HTTPHeaders()
-        headers["User-Agent"] = DeviceStatus.userAgentString()
-        guard let uid = BBSUser.shared.uid, let tokenStr = BBSUser.shared.token else {
-            log.errorMessage("Token expired!")/
-            return
+        headers["User-Agent"] = DeviceStatus.userAgent
+        if let authentication = authentication {
+            headers["authentication"] = authentication
         }
-        headers["authentication"] = String(uid) + "|" + tokenStr
-        
-        Alamofire.upload(multipartFormData: { formdata in
-            formdata.append(data!, withName: "1", fileName: "avatar.jpeg", mimeType: "image/jpeg")
-        }, to: url, method: .put, headers: headers, encodingCompletion: { response in
-            switch response {
-            case .success(let upload, _, _):
-                upload.responseJSON { response in
-                    success?()
+
+        if method == .put {
+            Alamofire.upload(multipartFormData: { formdata in
+                formdata.append(data!, withName: "1", fileName: "avatar.jpeg", mimeType: "image/jpeg")
+            }, to: url, method: .put, headers: headers, encodingCompletion: { response in
+                switch response {
+                case .success(let upload, _, _):
+                    upload.responseJSON { _ in
+                        success?([:])
+                    }
+                    upload.uploadProgress { progress in
+                        progressBlock?(progress)
+                    }
+                case .failure(let error):
+                    failure?(error)
                 }
-            case .failure(let error):
-                failure?(error)
-                print(error)
-            }
-        })
+            })
+        } else if method == .post {
+            Alamofire.upload(multipartFormData: { formdata in
+                formdata.append(data!, withName: "file", fileName: "image.jpeg", mimeType: "image/jpeg")
+                formdata.append("filename".data(using: .utf8)!, withName: "name", mimeType: "text")
+            }, to: url, method: .post, headers: headers, encodingCompletion: { response in
+                switch response {
+                case .success(let upload, _, _):
+                    upload.responseJSON { response in
+                        if let dic = response.result.value as? [String: Any] {
+                            if(dic["err"] as? Int) == 0 {
+                                success?(dic)
+                            } else {
+                                HUD.flash(.label(dic["data"] as? String), delay: 1.0)
+                            }
+                        }
+                    }
+                    upload.uploadProgress { progress in
+                        progressBlock?(progress)
+                    }
+                case .failure(let error):
+                    failure?(error)
+                }
+            })
+        }
+    }
+}
+
+class LoadingWrapper: NSObject {
+    var startTimer: Timer?
+    var stopTimer: Timer?
+
+    static let shared = LoadingWrapper()
+    override init() {}
+    func startLoading() {
+        if startTimer != nil {
+            let view = UIViewController.current?.view
+            HUD.show(.rotatingImage(UIImage(named: "progress")), onView: view)
+        }
+    }
+    func stopLoading() {
+        HUD.hide()
     }
 }

@@ -7,66 +7,92 @@
 //
 
 import UIKit
+import PiwikTracker
+import Kingfisher
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
 
-
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
-        
-        print("正常进来了呢")
+
         window = UIWindow(frame: UIScreen.main.bounds)
         if let window = window {
             window.backgroundColor = .white
-            
+
             //Handle NavigationBar Appearance
-            UINavigationBar.appearance().barTintColor = .BBSBlue
-            UINavigationBar.appearance().tintColor = .white
-            UINavigationBar.appearance().titleTextAttributes = [NSForegroundColorAttributeName: UIColor.white] //WTF I'm writing?
-            BBSUser.load()
-            
-            // 如果token不为空
-            if let token = BBSUser.shared.token, token != "" {
-                BBSJarvis.getAvatar(success: { image in
-                    BBSUser.shared.avatar = image
-                }, failure: {})
-                let tabBarVC = MainTabBarController(para: 1)
-                tabBarVC.modalTransitionStyle = .crossDissolve
-                window.rootViewController = tabBarVC
+            UINavigationBar.appearance().barTintColor = .white
+            UINavigationBar.appearance().tintColor = .black
+            UINavigationBar.appearance().titleTextAttributes = [NSForegroundColorAttributeName: UIColor.white]
+
+            //            UserDefaults.standard.set(false, forKey: GUIDEDIDSHOW)
+            if let userDidSeeGuide = UserDefaults.standard.value(forKey: GUIDEDIDSHOW) as? Bool, userDidSeeGuide == true {
+                BBSUser.load()
+
+                // 如果token不为空
+                if let token = BBSUser.shared.token, token != "" {
+                    BBSJarvis.getAvatar(success: { image in
+                        BBSUser.shared.avatar = image
+                    }, failure: { _ in })
+                    UserDefaults.standard.set(true, forKey: "noJobMode")
+                    let tabBarVC = MainTabBarController(para: 1)
+                    tabBarVC.modalTransitionStyle = .crossDissolve
+                    window.rootViewController = tabBarVC
+                } else {
+                    let navigationController = UINavigationController(rootViewController: LoginViewController(para: 1))
+                    window.rootViewController = navigationController
+                }
             } else {
-                let navigationController = UINavigationController(rootViewController: LoginViewController(para: 1))
+                let navigationController = UINavigationController(rootViewController: GuideViewController())
                 window.rootViewController = navigationController
             }
-            
+            //            PiwikTracker.configureSharedInstance(withSiteID: "13", baseURL: URL(string: h"ttps://elf.twtstudio.com/piwik.php")!)
+            PiwikTracker.sharedInstance(withSiteID: "13", baseURL: URL(string: "https://elf.twtstudio.com/piwik.php")!)
+            PiwikTracker.shared.isPrefixingEnabled = false
             window.makeKeyAndVisible()
         }
         return true
     }
 
-    func application(_ app: UIApplication, open url: URL, options: [UIApplicationOpenURLOptionsKey : Any] = [:]) -> Bool {
-        print("从其他地方进来了呢")
-        let detailVC = PostDetailViewController()
+    func application(_ app: UIApplication, open url: URL, options: [UIApplicationOpenURLOptionsKey: Any] = [:]) -> Bool {
+
+//        let detailVC = ThreadDetailViewController()
         let tabBarVC = MainTabBarController(para: 1)
         window = UIWindow(frame: UIScreen.main.bounds)
         if let window = window {
             window.backgroundColor = .white
-            
+
             //Handle NavigationBar Appearance
             UINavigationBar.appearance().barTintColor = .BBSBlue
             UINavigationBar.appearance().tintColor = .white
             UINavigationBar.appearance().titleTextAttributes = [NSForegroundColorAttributeName: UIColor.white] //WTF I'm writing?
             BBSUser.load()
-            
+
             window.rootViewController = tabBarVC
-            
+
             window.makeKeyAndVisible()
-            tabBarVC.selectedViewController?.navigationController?.pushViewController(detailVC, animated: true)
+            if let query = url.query {
+                if let bid = Int(query.replacingOccurrences(of: "^bid=([0-9]*?)(.*)$", with: "$2", options: .regularExpression, range: nil)) {
+                    let detailVC = ThreadListController(bid: bid)
+                    (tabBarVC.selectedViewController as? UINavigationController)?.pushViewController(detailVC, animated: true)
+                    return true
+                } else if let tid = Int(query.replacingOccurrences(of: "^tid=([0-9]*?)(.*)$", with: "$2", options: .regularExpression, range: nil)) {
+                    let detailVC = ThreadDetailViewController(tid: tid)
+                    (tabBarVC.selectedViewController as? UINavigationController)?.pushViewController(detailVC, animated: true)
+                    return true
+                } else if let uid = Int(query.replacingOccurrences(of: "^uid=([0-9]*?)(.*)$", with: "$2", options: .regularExpression, range: nil)) {
+                    let detailVC = HHUserDetailViewController(uid: uid)
+                    (tabBarVC.selectedViewController as? UINavigationController)?.pushViewController(detailVC, animated: true)
+                    return true
+                }
+            }
+//            tabBarVC.selectedViewController?.navigationController?.pushViewController(detailVC, animated: true)
         }
         return true
     }
+
     func applicationWillResignActive(_ application: UIApplication) {
         // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
         // Use this method to pause ongoing tasks, disable timers, and invalidate graphics rendering callbacks. Games should use this method to pause the game.
@@ -89,6 +115,4 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
-
 }
-

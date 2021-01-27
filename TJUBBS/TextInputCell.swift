@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import Marklight
 
 enum TextInputCellType {
     case textField
@@ -14,11 +15,13 @@ enum TextInputCellType {
 }
 
 class TextInputCell: UITableViewCell {
-    
+
     var titleLabel: UILabel?
     var textField: UITextField?
     var textView: UITextView?
     var type: TextInputCellType = .textField
+//    let textStorage = MarklightTextStorage()
+    var extendBtn: UIButton?
 
     convenience init(title: String, placeholder: String, type: TextInputCellType = .textField) {
         self.init()
@@ -32,8 +35,9 @@ class TextInputCell: UITableViewCell {
             }
             textField?.placeholder = placeholder
             textField?.textAlignment = .right
-            
+
             titleLabel = UILabel(text: title)
+            titleLabel?.font = UIFont.systemFont(ofSize: 17)
             contentView.addSubview(titleLabel!)
             titleLabel?.snp.makeConstraints {
                 make in
@@ -43,6 +47,7 @@ class TextInputCell: UITableViewCell {
             }
         } else if type == .textView {
             titleLabel = UILabel(text: title)
+            titleLabel?.font = UIFont.systemFont(ofSize: 17)
             titleLabel?.sizeToFit()
             contentView.addSubview(titleLabel!)
             titleLabel?.snp.makeConstraints {
@@ -52,11 +57,13 @@ class TextInputCell: UITableViewCell {
             }
 
             textView = UITextView()
+//            textStorage.addLayoutManager((textView?.layoutManager)!)
+            textView?.font = UIFont.systemFont(ofSize: 17)
             contentView.addSubview(textView!)
             textView?.snp.makeConstraints {
                 make in
                 make.top.equalTo(titleLabel!.snp.bottom).offset(10)
-                make.height.equalTo(60)
+                make.height.equalTo(120)
                 make.right.equalTo(contentView).offset(-16)
                 make.left.equalTo(contentView).offset(16)
                 make.bottom.equalTo(contentView).offset(-20)
@@ -64,12 +71,11 @@ class TextInputCell: UITableViewCell {
         }
     }
 
-    
     override func awakeFromNib() {
         super.awakeFromNib()
     }
-    
+
     override func setSelected(_ selected: Bool, animated: Bool) {
-        super.setSelected(selected, animated: animated)
+        super.setSelected(selected, animated: false)
     }
 }
